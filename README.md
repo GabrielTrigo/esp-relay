@@ -16,6 +16,10 @@ de tuneis como o `ssh -R` ou o Cloudflare Tunnel, aqui com um protocolo de IOs e
 └──────────────┘      ack / ping         └──────────────────────────┘                 └──────────┘
 ```
 
+| Exemplo na placa (`oled-text`) | Painel web |
+|---|---|
+| ![ESP8266 em protoboard com OLED, LEDs e LDR](docs/img/board.jpeg) | ![Painel web com cards de devices, toggles e valores ao vivo](docs/img/screenshot.png) |
+
 ## O que tem aqui
 
 | Parte | Pasta | Linguagem | Papel |
