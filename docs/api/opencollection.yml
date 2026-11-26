@@ -1,0 +1,26 @@
+opencollection: 1.0.0
+
+info:
+  name: Gateway IoT
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: baseUrl
+      value: https://www.exemplo.com/iot
+    - name: apiKey
+      value: SUA_CHAVE
+    - name: deviceId
+      value: esp-relay-demo
+bundled: false
+extensions: {}

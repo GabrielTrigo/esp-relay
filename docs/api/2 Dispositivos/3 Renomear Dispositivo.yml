@@ -1,0 +1,37 @@
+info:
+  name: Renomear Dispositivo
+  type: http
+  seq: 3
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/devices/{{deviceId}}"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: "application/json"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "name": "ESP-01 Sala"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Define o nome amigavel exibido no painel. Nao altera IOs, estado nem a fila.
+
+  - 200 com o dispositivo atualizado; 404 se o device nao existir.
+  - Corpo sem `name` e **aceito** (200) e nao altera nada: o patch so aplica o
+    campo quando ele vem preenchido. Para validar um 404 use outro `{{deviceId}}`.
+  - O `id` do device nao muda: e a chave com que o firmware se conecta.
+
+  Sem chave valida: 401. Erro de device inexistente: texto puro `device not found`.

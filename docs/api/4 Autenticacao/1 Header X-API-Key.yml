@@ -1,0 +1,29 @@
+info:
+  name: Header X-API-Key
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/devices"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Forma recomendada (e a que o firmware usa): header `X-API-Key: <chave>`.
+
+  Todas as rotas `/api/*` e `/ws` exigem uma das tres formas de chave:
+  `X-API-Key`, `Authorization: Bearer` ou `?api_key=`. A comparacao e em tempo
+  constante.
+
+  401 em `/api/*` devolve JSON `{"error":"unauthorized"}`; nas demais rotas, texto
+  puro `unauthorized`.

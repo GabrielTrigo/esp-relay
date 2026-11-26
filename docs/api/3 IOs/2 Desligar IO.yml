@@ -1,0 +1,40 @@
+info:
+  name: Desligar IO
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/devices/{{deviceId}}/io"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "io": "Pin_D1",
+        "state": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Desliga um IO `switch` existente. Mesma semantica de resposta do "Ligar IO":
+  200 entregue agora, 202 enfileirado ou nao entregue.
+
+  Resposta 200 (real):
+  ```json
+  {"command_id":"cmd-1795632795118811000","delivered":true,"device_id":"esp-relay-demo","io":"gpio2","queued":false,"state":false}
+  ```
+
+  `state: false` precisa vir explicito no JSON: o servidor diferencia "campo
+  ausente" de `false` e sem ele responde 400.

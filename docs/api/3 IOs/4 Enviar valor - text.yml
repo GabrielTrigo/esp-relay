@@ -1,0 +1,57 @@
+info:
+  name: Enviar valor (text)
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/devices/{{deviceId}}/io"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "io": "text",
+        "value": "Te amo, pic!"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Envia um valor para um IO `text`: caminho painel -> ESP. O firmware consome no
+  `loop()` com `device.takeText("status", buf, sizeof buf)`.
+
+  Pre-requisito: o IO precisa **existir** com `kind: "text"`, anunciado no
+  `register` do firmware. Sem isso, a resposta e 400 `io desconhecido para value`.
+
+  Resposta 200 (real, com o IO registrado):
+  ```json
+  {"command_id":"cmd-1795632795138072900","delivered":true,"device_id":"esp-relay-demo","io":"status","queued":false,"value":"menu"}
+  ```
+
+  No socket o ESP recebe (todo `set_io` leva `state`, mesmo em IO de valor):
+  ```json
+  {"type":"set_io","command_id":"cmd-1795632795138072900","io":"status","state":false,"value":"menu"}
+  ```
+
+  Regras:
+  - `value` e uma **string** JSON. Numero em IO `text`: 400 `valor invalido para text`.
+  - **Teto de 128 bytes** (UTF-8) por valor; 129 bytes: 400. O gateway repete a
+    checagem porque o buffer do ESP e fixo (`kIotMaxReceivedTextBytes`).
+  - O valor **nao** vira estado: nao aparece em `GET /api/devices` nem no
+    `state.json`. Existe so ate o firmware consumir - fila de 1 por IO: se dois
+    valores chegarem antes do `takeText`, o ultimo vence.
+
+  O IO `status` aqui e exemplo: o firmware do exemplo `oled-text` declara o IO de
+  texto `text`. Declare o seu em `kTexts` (e consuma com `takeText`) para testar de
+  ponta a ponta.

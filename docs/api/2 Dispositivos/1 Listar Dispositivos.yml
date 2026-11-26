@@ -1,0 +1,57 @@
+info:
+  name: Listar Dispositivos
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/devices"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Lista todos os dispositivos com IOs e fila pendente.
+
+  ```json
+  {
+    "updated_at": "2026-11-25T02:07:00Z",
+    "devices": [
+      {
+        "id": "esp8266-led",
+        "name": "LED da Placa",
+        "online": true,
+        "last_seen": "2026-11-25T02:07:00Z",
+        "ios": {
+          "gpio2":  { "name": "LED da Placa", "kind": "switch", "state": false, "updated_at": "2026-11-25T02:07:00Z" },
+          "ldr":    { "name": "Luz (A0)",     "kind": "number", "value": 734, "value_updated_at": "2026-11-25T02:07:00Z" },
+          "status": { "name": "Status",       "kind": "text",   "value": "online", "value_updated_at": "2026-11-25T02:07:00Z" }
+        },
+        "pending_queue": [
+          { "id": "cmd-1764123456789012345", "type": "set_io", "io": "gpio2", "state": true, "created_at": "..." }
+        ]
+      }
+    ]
+  }
+  ```
+
+  Cada IO tem `kind`:
+  - `switch`: tem `state` e `updated_at`; **nao** tem `value`.
+  - `number` / `text`: tem `value` e `value_updated_at`; **nao** tem `state`.
+
+  `value` de `number`/`text` aparece aqui e no `/events`, mas nunca no
+  `state.json`: depois de reiniciar o gateway o IO continua com o `kind` e sem o
+  ultimo valor. `null` significa "nenhum valor recebido ainda".
+
+  `pending_queue` guarda so comandos nao entregues (ESP offline). Ela esvazia no
+  `ack` do firmware.
+
+  Timestamps em UTC. Sem chave valida: 401 `{"error":"unauthorized"}`.

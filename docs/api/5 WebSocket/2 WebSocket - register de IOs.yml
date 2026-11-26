@@ -1,0 +1,36 @@
+info:
+  name: WebSocket - register de IOs
+  type: websocket
+  seq: 2
+
+websocket:
+  url: "ws://localhost:8080/ws?device_id={{deviceId}}&api_key={{apiKey}}"
+  message:
+    type: text
+    data: |-
+      {"type":"register","device_id":"esp8266-led","ios":{"gpio2":{"name":"LED da Placa","kind":"switch","state":false},"ldr":{"name":"Luz (A0)","kind":"number"},"status":{"name":"Status","kind":"text"}}}
+  auth: inherit
+
+settings:
+  timeout: 0
+  keepAliveInterval: 0
+
+docs: |-
+  Anuncia os IOs que o firmware suporta. Cada IO leva `kind`:
+
+  - `switch`: leva `state` e o painel mostra o toggle.
+  - `number` / `text`: nao leva `state`; o firmware publica o valor por `report`
+    e o painel mostra o numero/texto.
+
+  O servidor cria os IOs que ainda nao existem (preservando o estado desejado ja
+  salvo) e responde com `sync`.
+
+  Casos de borda:
+  - Se o `kind` de um IO ja conhecido **mudar** entre uma gravacao e outra (ex.:
+    `switch` -> `number`), o servidor adota o novo kind, limpa `state` (ou o
+    `value`, no sentido inverso) e o IO volta com o campo do kind correto.
+  - `sync` so inclui `switch`: IO de valor nao tem comando a aplicar.
+  - IO que o servidor conhece e o firmware nao: fica no painel, mas o ESP o
+    ignora no `sync` (sem `ack`).
+
+  Chamado automaticamente pelo firmware em `WStype_CONNECTED`.

@@ -1,0 +1,25 @@
+info:
+  name: Bearer token
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/devices"
+  headers:
+    - name: Authorization
+      value: "Bearer {{apiKey}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Variante aceita: `Authorization: Bearer <chave>`. Equivalente a `X-API-Key`.
+
+  Use uma das duas, nao as duas com valores diferentes - o servidor le
+  `X-API-Key` primeiro.

@@ -1,0 +1,55 @@
+info:
+  name: Ligar IO
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/devices/{{deviceId}}/io"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "io": "Pin_D1",
+        "state": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Liga um IO `switch`. Campos: `io` (obrigatorio), `state` (booleano,
+  obrigatorio) e `name` opcional, que renomeia o rotulo no painel.
+
+  **ESP online** - 200 (resposta real do gateway):
+  ```json
+  {"command_id":"cmd-1795632795113569800","delivered":true,"device_id":"esp-relay-demo","io":"gpio2","queued":false,"state":true}
+  ```
+
+  **ESP offline** - 202 (resposta real):
+  ```json
+  {"command_id":"cmd-1795632838782797600","delivered":false,"device_id":"esp-relay-demo","io":"gpio2","queued":true,"state":true}
+  ```
+  `queued:true` = entrou na `pending_queue`, entregue no proximo `register`.
+  `delivered` e `queued` sao independentes: um envio que falha com o ESP
+  "online" devolve 202 com os dois em `false` (limite conhecido do gateway -
+  nesse caso o comando se perde).
+
+  O `command_id` e unico por comando. O ESP devolve o mesmo id no `ack` (ver
+  "WebSocket - ack de set_io").
+
+  Erros: 401 sem chave; 404 `device not found` (**o device so existe depois que
+  algum ESP conectou com esse `DEVICE_ID`** - "Criar IO manualmente" tambem
+  devolve 404 nesse caso); 400 `invalid payload` (JSON invalido ou `io` vazio);
+  400 `informe state ou value (exatamente um)`; 400 `io nao tem estado (use
+  value)` se o IO for `number`/`text`.

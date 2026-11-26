@@ -1,0 +1,50 @@
+info:
+  name: Criar IO manualmente
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/devices/{{deviceId}}/io"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: "application/json"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "io": "gpio5",
+        "state": false,
+        "name": "Rele da Sala"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Cria o IO no device (ou renomeia, se ja existe). O POST de IO e idempotente.
+
+  **O device precisa existir**: se nenhum ESP conectou ainda com `{{deviceId}}`, a
+  resposta e 404 `device not found` (confirmado). Para o primeiro contato, rode o
+  sketch / o request "WebSocket - register de IOs", ou abra o painel.
+
+  Resposta 200 com ESP online (real):
+  ```json
+  {"command_id":"cmd-1795632795105525300","delivered":true,"device_id":"esp-relay-demo","io":"gpio5","queued":false,"state":false}
+  ```
+
+  - `io` deve casar com a chave que o firmware reconhece (`gpio5`, `gpio2`...).
+  - `name` (opcional) e o rotulo no painel; sem ele o nome e a propria chave.
+  - O IO criado por aqui e sempre `switch`. IO de valor precisa existir com
+    `kind` `number`/`text` (anunciado no `register` do firmware).
+
+  Atencao: no proximo `register`, o firmware manda no `kind` e nos nomes dos IOs
+  que ele declara. Um IO criado aqui que nao existe no firmware continua no
+  painel, inerte (e o ESP responde `ack` sem efeito).

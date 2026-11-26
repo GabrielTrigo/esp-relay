@@ -1,0 +1,37 @@
+info:
+  name: Abrir WebSocket do dispositivo
+  type: websocket
+  seq: 1
+
+websocket:
+  url: "ws://localhost:8080/ws?device_id={{deviceId}}&api_key={{apiKey}}"
+  message:
+    type: text
+    data: |-
+      {"type":"ping"}
+  auth: inherit
+
+settings:
+  timeout: 0
+  keepAliveInterval: 0
+
+docs: |-
+  Conexao de teste no lugar do ESP. Use com a chave via query (`api_key`) ou
+  configure o header `X-API-Key` - o firmware usa header para nao vazar a chave em
+  logs de proxy.
+
+  Ao conectar o servidor envia `sync` (somente IOs `switch`) e, em seguida, os
+  `set_io` pendentes da fila. Um novo socket para o mesmo `device_id` derruba o
+  anterior.
+
+  Mensagens que o servidor aceita:
+
+  | Tipo | Efeito |
+  |---|---|
+  | `{"type":"ping"}` | responde `{"type":"pong"}` e atualiza `last_seen` so em memoria |
+  | `{"type":"register","ios":{...}}` | anuncia IOs e recebe `sync` (request 2) |
+  | `{"type":"report","io":"ldr","kind":"number","value":734}` | publica valor no painel (request 3) |
+  | `{"type":"ack","command_id":"cmd-...","io":"gpio2","state":true}` | drena a fila (request 4) |
+
+  Conexoes sem mensagem por **90 s** sao fechadas; o firmware envia `ping` a cada
+  25 s. Tipos desconhecidos sao ignorados em silencio.

@@ -1,0 +1,25 @@
+info:
+  name: Health
+  type: http
+  seq: 1
+
+http:
+  method: get
+  url: "{{baseUrl}}/health"
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Verifica se o servidor está no ar. Não exige autenticação.
+
+  Resposta: 200 `{"status":"ok"}`
+
+  Aberto no navegador: o painel web (`/`) também não exige auth no GET.
+
+  Rotas sem auth: `GET /` e `GET /health`. Todo o resto (`/api/*`,`/events`,`/ws`) exige a chave - veja a pasta `4 Autenticacao`.

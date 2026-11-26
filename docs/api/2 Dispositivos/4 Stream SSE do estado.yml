@@ -1,0 +1,36 @@
+info:
+  name: Stream SSE do estado
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/events?api_key={{apiKey}}"
+  headers:
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Stream Server-Sent Events do estado. O painel usa isso para refletir mudancas
+  em tempo real (cai para polling de 5 s se o stream nao abrir).
+
+  Diferente das rotas `/api/*`, **aceita e exige `?api_key=`**: o `EventSource` do
+  navegador nao envia cabecalhos. `X-API-Key` tambem funciona para clientes HTTP.
+
+  Cada evento e uma linha `data:` com o mesmo JSON de "Listar Dispositivos".
+  Valores de `number`/`text` (`report`) entram na hora no evento, sem serem
+  gravados no `state.json`.
+
+  No Bruno use **Run**: a resposta fica aberta (a conexao nao termina). Sem chave:
+  401.
+
+  Teste pelo navegador (troque a chave e o device):
+  ```
+  https://www.exemplo.com/iot/events?api_key=SUA_CHAVE
+  ```

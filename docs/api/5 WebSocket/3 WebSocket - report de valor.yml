@@ -1,0 +1,41 @@
+info:
+  name: WebSocket - report de valor
+  type: websocket
+  seq: 3
+
+websocket:
+  url: "ws://localhost:8080/ws?device_id={{deviceId}}&api_key={{apiKey}}"
+  message:
+    type: text
+    data: |-
+      {"type":"report","io":"ldr","kind":"number","value":734}
+  auth: inherit
+
+settings:
+  timeout: 0
+  keepAliveInterval: 0
+
+docs: |-
+  Publica o valor de um IO `number` (ou `text`): caminho inverso do toggle - aqui
+  o dispositivo manda e o painel mostra.
+
+  ```json
+  {"type":"report","io":"ldr","kind":"number","value":734}
+  {"type":"report","io":"status","kind":"text","value":"online"}
+  ```
+
+  Regras:
+  - O `io` precisa existir com o **mesmo `kind`** do `register`. Kind divergente e
+    descartado com log; o kind do `register` sempre manda.
+  - O valor aparece na hora no painel (`/events`) e **nao** e gravado no
+    `state.json` - so o `kind` persiste. Um LDR a 1 Hz nao reescreve o disco.
+  - Nao passa pela `pending_queue` e nao espera `ack`: offline, o valor e perdido
+    (ele e instantaneo, nao e comando).
+  - Teto de **4096 bytes** por texto (contra 128 do `set_io`). `null`, NaN/Inf e
+    texto acima do teto sao descartados.
+  - `report` sem `kind`, ou com kind que nao seja `number`/`text`, e descartado.
+  - IO desconhecido: o servidor cria com o kind do report (defesa) e grava o
+    `kind` uma vez; o `register` deveria ter vindo antes.
+
+  No firmware isso sai de `device.publishNumber("ldr", analogRead(A0));` ou
+  `device.publishText("status", "online");`.

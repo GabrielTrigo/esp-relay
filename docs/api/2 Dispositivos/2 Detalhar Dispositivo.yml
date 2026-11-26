@@ -1,0 +1,28 @@
+info:
+  name: Detalhar Dispositivo
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/devices/{{deviceId}}"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Detalhes de um dispositivo: mesmo objeto de `devices[i]` do "Listar
+  Dispositivos".
+
+  - 404 se o device nao existir (`device not found`, texto puro).
+  - O `{{deviceId}}` e o `DEVICE_ID` do firmware, nao o nome amigavel.
+
+  Troque a variavel no menu do Bruno para testar outra placa.

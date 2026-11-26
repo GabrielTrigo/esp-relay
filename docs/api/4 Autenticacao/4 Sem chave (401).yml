@@ -1,0 +1,23 @@
+info:
+  name: Sem chave (401)
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/devices"
+  headers:
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Exemplo de chamada sem chave: deve dar **401** com `{"error":"unauthorized"}`.
+
+  Se este request der 200, o gateway esta sem `IOT_API_KEY` configurada (o
+  servidor nao sobe sem ela) ou voce esta batendo em outra instancia.

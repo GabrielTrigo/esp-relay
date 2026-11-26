@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>esp-relay · Console</title>
+  <script>
+    // Tema antes do primeiro paint (evita piscar o escuro ao abrir no claro).
+    (() => {
+      let theme = "light";
+      try { theme = localStorage.getItem("iot_theme") === "dark" ? "dark" : "light"; } catch { /* storage bloqueado */ }
+      const root = document.documentElement;
+      root.classList.toggle("dark", theme === "dark");
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+          },
+          colors: {
+            ink: { 900: '#080b10', 850: '#0b0f16', 800: '#0f141c', 700: '#161d28', 600: '#1f2937', 500: '#2b3646' },
+            accent: { DEFAULT: '#38bdf8', dim: '#0ea5e9' },
+            // Tema claro: mesmos papéis da paleta escura, para trocar de tema com o
+            // sufixo literal "dark:" (ex.: "dark:bg-ink-850") neste arquivo.
+            paper: { 900: '#ffffff', 850: '#ffffff', 800: '#ffffff', 700: '#f1f5f9', 600: '#e2e8f0', 500: '#cbd5e1' }
+          },
+          keyframes: {
+            'fade-up': { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            'pulse-ring': { '0%': { opacity: '0.7', transform: 'scale(0.9)' }, '70%,100%': { opacity: '0', transform: 'scale(2.2)' } },
+            'flash': { '0%': { backgroundColor: 'rgba(56,189,248,0.18)' }, '100%': { backgroundColor: 'transparent' } },
+            'sweep': { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(200%)' } }
+          },
+          animation: {
+            'fade-up': 'fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both',
+            'pulse-ring': 'pulse-ring 1.8s cubic-bezier(0.4,0,0.6,1) infinite',
+            'flash': 'flash 1s ease-out',
+            'sweep': 'sweep 1.4s ease-in-out infinite'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { color-scheme: dark; }
+    body {
+      background:
+        radial-gradient(1000px 500px at 15% -10%, rgba(56,189,248,0.09), transparent 60%),
+        radial-gradient(800px 400px at 95% 0%, rgba(139,92,246,0.07), transparent 55%),
+        #080b10;
+    }
+    .grid-bg::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 80%);
+    }
+    ::selection { background: rgba(56,189,248,0.3); }
+    .card { transition: border-color .25s, background-color .25s, transform .25s; }
+    .card:hover { border-color: #2b3646; }
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+    /* Tema claro: mesma linguagem do escuro, invertida. */
+    html:not(.dark) { color-scheme: light; }
+    html:not(.dark) body {
+      background:
+        radial-gradient(1000px 500px at 15% -10%, rgba(14,165,233,0.10), transparent 60%),
+        radial-gradient(800px 400px at 95% 0%, rgba(139,92,246,0.07), transparent 55%),
+        #f4f7fb;
+    }
+    html:not(.dark) .grid-bg::before {
+      background-image: linear-gradient(rgba(15,23,42,0.045) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(15,23,42,0.045) 1px, transparent 1px);
+    }
+    html:not(.dark) ::selection { background: rgba(14,165,233,0.22); }
+    html:not(.dark) .card:hover { border-color: #cbd5e1; }
+    html:not(.dark) .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; }
+    .theme-ico--moon { display: none; }
+    html:not(.dark) .theme-ico--sun { display: none; }
+    html:not(.dark) .theme-ico--moon { display: block; }
+  </style>
+</head>
+<body class="grid-bg font-sans text-slate-700 dark:text-slate-200 antialiased min-h-screen">
+
+<div class="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 py-6 sm:py-10">
+
+  <!-- Header -->
+  <header class="flex flex-wrap items-center justify-between gap-4 pb-8">
+    <div class="flex items-center gap-3">
+      <div class="relative grid place-items-center h-11 w-11 rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 border border-sky-500/30">
+        <svg class="h-5 w-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20v-6"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M5 7a8 8 0 0 1 14 0"/><circle cx="12" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">esp-relay</h1>
+        <p class="text-xs text-slate-500 font-mono">fleet console</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div id="live-badge" class="hidden sm:flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 dark:border-slate-700/70 dark:bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <span class="relative flex h-2 w-2">
+          <span id="live-ring" class="absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-0"></span>
+          <span id="live-dot" class="relative inline-flex h-2 w-2 rounded-full bg-slate-500"></span>
+        </span>
+        <span id="live-text">conectando</span>
+      </div>
+      <div id="clock" class="hidden md:block rounded-full border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40 px-3 py-1.5 text-xs font-mono text-slate-500 tabular-nums"></div>
+      <button id="theme-toggle" type="button" aria-label="Alternar tema claro/escuro" title="Tema claro/escuro"
+        class="grid place-items-center h-8 w-8 rounded-full border border-slate-200 bg-white/80 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200">
+        <svg class="theme-ico--sun h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="theme-ico--moon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Key modal -->
+  <div id="key-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/30 p-4 backdrop-blur-sm dark:bg-black/60">
+    <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-paper-800 p-6 shadow-xl dark:border-slate-700/70 dark:bg-ink-800 dark:shadow-2xl animate-fade-up">
+      <div class="flex items-start gap-3">
+        <div class="grid place-items-center h-9 w-9 shrink-0 rounded-lg bg-amber-500/10 border border-amber-500/25">
+          <svg class="h-4 w-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <h2 class="font-semibold text-slate-900 dark:text-white">Chave de acesso</h2>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Informe a API Key do gateway. Ela fica salva apenas neste navegador.</p>
+        </div>
+      </div>
+      <form id="key-form" class="mt-5">
+        <input id="api-key" type="password" autocomplete="off" placeholder="••••••••••••"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-sky-500/70 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-ink-900 dark:text-slate-100 dark:placeholder:text-slate-600">
+        <p id="key-error" class="mt-2 hidden text-xs text-rose-600 dark:text-rose-400"></p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" id="key-cancel" class="rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">Cancelar</button>
+          <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 active:scale-[0.98]">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stat strip -->
+  <section class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-8">
+    <div class="animate-fade-up rounded-xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-ink-850/70 dark:shadow-none p-4" style="animation-delay:0ms">
+      <div class="flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Dispositivos</span>
+        <svg class="h-4 w-4 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+      </div>
+      <div id="stat-total" class="mt-2 font-mono text-2xl font-semibold text-slate-900 dark:text-white tabular-nums">—</div>
+    </div>
+    <div class="animate-fade-up rounded-xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-ink-850/70 dark:shadow-none p-4" style="animation-delay:40ms">
+      <div class="flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Online</span>
+        <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/60"></span>
+      </div>
+      <div id="stat-online" class="mt-2 font-mono text-2xl font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">—</div>
+    </div>
+    <div class="animate-fade-up rounded-xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-ink-850/70 dark:shadow-none p-4" style="animation-delay:80ms">
+      <div class="flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Offline</span>
+        <span class="h-2 w-2 rounded-full bg-rose-400/80"></span>
+      </div>
+      <div id="stat-offline" class="mt-2 font-mono text-2xl font-semibold text-rose-600 dark:text-rose-400 tabular-nums">—</div>
+    </div>
+    <div class="animate-fade-up rounded-xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-ink-850/70 dark:shadow-none p-4" style="animation-delay:120ms">
+      <div class="flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Na fila</span>
+        <svg class="h-4 w-4 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+      </div>
+      <div id="stat-queue" class="mt-2 font-mono text-2xl font-semibold text-amber-600 dark:text-amber-400 tabular-nums">—</div>
+    </div>
+  </section>
+
+  <!-- Device grid -->
+  <section>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Dispositivos</h2>
+        <span id="online-summary" class="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 font-mono text-[11px] text-slate-500 dark:border-slate-800 dark:bg-ink-850">—</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="filter" type="text" placeholder="filtrar…" class="w-36 rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-xs text-slate-700 placeholder:text-slate-400 outline-none transition focus:w-48 focus:border-sky-500/60 dark:border-slate-800 dark:bg-ink-850 dark:text-slate-200 dark:placeholder:text-slate-600">
+        </div>
+        <button id="add-device-hint" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition hover:border-slate-300 hover:text-slate-800 dark:border-slate-800 dark:bg-ink-850 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200" title="Dispositivos aparecem ao conectar via /ws">
+          <span class="mr-1">+</span> como adicionar
+        </button>
+        <button id="open-key" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition hover:border-slate-300 hover:text-slate-800 dark:border-slate-800 dark:bg-ink-850 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200" title="Trocar API Key">chave</button>
+      </div>
+    </div>
+
+    <div id="devices" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
+
+    <!-- Empty state -->
+    <div id="empty" class="hidden animate-fade-up rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-16 text-center dark:border-slate-800 dark:bg-ink-850/40">
+      <div class="mx-auto grid place-items-center h-14 w-14 rounded-2xl bg-slate-100 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-700/60">
+        <svg class="h-6 w-6 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6v6H9z"/><path d="M3 9h0M21 15h0"/></svg>
+      </div>
+      <h3 class="mt-4 font-semibold text-slate-800 dark:text-slate-200">Nenhum dispositivo conectado</h3>
+      <p class="mx-auto mt-2 max-w-sm text-sm text-slate-500">Ligue um ESP apontando para <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-sky-700 dark:bg-slate-800 dark:text-sky-300">/ws</code>. Ao conectar, ele anuncia os IOs e aparece aqui automaticamente.</p>
+    </div>
+  </section>
+
+  <footer class="mt-12 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-5 text-[11px] font-mono text-slate-500 dark:border-slate-800/60 dark:text-slate-600">
+    <span>esp-relay · ws + rest</span>
+    <span>versão <span id="build-version">{{BUILD_VERSION}}</span></span>
+    <span id="updated-at">—</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const KEY_STORE = "iot_api_key";
+  const devicesEl = document.getElementById("devices");
+  const emptyEl = document.getElementById("empty");
+  const keyModal = document.getElementById("key-modal");
+  const keyInput = document.getElementById("api-key");
+  const keyForm = document.getElementById("key-form");
+  const keyError = document.getElementById("key-error");
+  const filterInput = document.getElementById("filter");
+
+  let apiKey = localStorage.getItem(KEY_STORE) || "";
+  // Conveniência: permite abrir com #key=... (não fica em logs de servidor).
+  const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("key");
+  if (hashKey) {
+    apiKey = hashKey;
+    localStorage.setItem(KEY_STORE, apiKey);
+    history.replaceState(null, "", location.pathname);
+  }
+  let lastDevices = [];
+  let filter = "";
+  let eventSource = null;
+
+  // O painel pode ser publicado na raiz ou em subpath (/iot/). O servidor
+  // injeta <base href> conforme o proxy; toda chamada sai daí, nunca de "/".
+  const BASE = document.baseURI;
+  const apiURL = (path) => new URL(path.replace(/^\//, ""), BASE).toString();
+
+  // ---------- helpers ----------
+  const esc = (v) => {
+    const s = document.createElement("span");
+    s.textContent = String(v ?? "");
+    return s.innerHTML;
+  };
+
+  function relTime(iso) {
+    if (!iso) return "nunca";
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return "—";
+    const diff = Math.max(0, Date.now() - t);
+    const s = Math.floor(diff / 1000);
+    if (s < 5) return "agora";
+    if (s < 60) return `há ${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `há ${m}min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `há ${h}h`;
+    return `há ${Math.floor(h / 24)}d`;
+  }
+
+  function zoneText(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("pt-BR", { hour12: false });
+  }
+
+  function setLive(state) {
+    const dot = document.getElementById("live-dot");
+    const ring = document.getElementById("live-ring");
+    const text = document.getElementById("live-text");
+    const map = {
+      live: ["bg-emerald-400", "bg-emerald-400 animate-pulse-ring opacity-100", "ao vivo", "text-emerald-400"],
+      connecting: ["bg-amber-400", "bg-transparent", "conectando", "text-amber-400"],
+      offline: ["bg-rose-400", "bg-transparent", "sem conexão", "text-rose-400"]
+    };
+    const [dotCls, ringCls, label, textCls] = map[state] || map.offline;
+    dot.className = `relative inline-flex h-2 w-2 rounded-full ${dotCls}`;
+    ring.className = `absolute inline-flex h-full w-full rounded-full ${ringCls}`;
+    text.textContent = label;
+    text.className = textCls;
+  }
+
+  // ---------- theme ----------
+  const THEME_STORE = "iot_theme";
+  const themeToggle = document.getElementById("theme-toggle");
+
+  function applyTheme(theme) {
+    const dark = theme === "dark";
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = theme;
+    themeToggle.setAttribute("aria-pressed", String(dark));
+    themeToggle.title = dark ? "Mudar para tema claro" : "Mudar para tema escuro";
+  }
+
+  themeToggle.addEventListener("click", () => {
+    const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    applyTheme(next);
+    try { localStorage.setItem(THEME_STORE, next); } catch { /* storage bloqueado: só nesta sessão */ }
+  });
+
+  // ---------- key handling ----------
+  function openKeyModal(withError = false) {
+    keyModal.classList.remove("hidden");
+    keyModal.classList.add("flex");
+    keyInput.value = apiKey;
+    keyError.classList.toggle("hidden", !withError);
+    keyError.textContent = withError ? "Chave inválida ou ausente." : "";
+    setTimeout(() => keyInput.focus(), 30);
+  }
+  function closeKeyModal() {
+    keyModal.classList.add("hidden");
+    keyModal.classList.remove("flex");
+  }
+  document.getElementById("open-key").addEventListener("click", () => openKeyModal());
+  document.getElementById("key-cancel").addEventListener("click", closeKeyModal);
+  keyModal.addEventListener("click", (e) => { if (e.target === keyModal) closeKeyModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeKeyModal(); });
+
+  keyForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    apiKey = keyInput.value.trim();
+    localStorage.setItem(KEY_STORE, apiKey);
+    closeKeyModal();
+    connect();
+  });
+
+  function apiHeaders() {
+    return { "X-API-Key": apiKey, "Content-Type": "application/json" };
+  }
+
+  // ---------- rendering ----------
+  function statusBadge(online, queued) {
+    if (online) {
+      return `<span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-500/25 dark:text-emerald-300">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px] shadow-emerald-400/70"></span>online</span>`;
+    }
+    if (queued) {
+      return `<span class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:border-amber-500/25 dark:text-amber-300">
+        <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>fila</span>`;
+    }
+    return `<span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
+      <span class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-slate-500"></span>offline</span>`;
+  }
+
+  // kind vazio/desconhecido é switch: estado antigo e IOs criados pelo
+  // formulário continuam com toggle, como sempre foram.
+  function isSwitchIO(cfg) {
+    return !cfg || !cfg.kind || cfg.kind === "switch";
+  }
+
+  // Botão de remover IO: some do console/API, não do firmware (o protocolo não
+  // tem comando de remoção). Aparece no hover da linha.
+  function removeBtnHTML(ioKey) {
+    return `<button type="button" data-removeio="${esc(ioKey)}" title="Remover ${esc(ioKey)} do console"
+      class="shrink-0 rounded p-0.5 text-slate-400 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-500 focus:opacity-100 group-hover/io:opacity-100">
+      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>`;
+  }
+
+  // Linha de IO de valor: o último report, sem toggle. O rodapé carrega o
+  // horário do valor (value_updated_at), que diz se o sensor parou de mandar.
+  function valueRowHTML(ioKey, cfg) {
+    const hasValue = cfg.value !== undefined && cfg.value !== null && cfg.value !== "";
+    const shown = hasValue ? String(cfg.value) : "—";
+    return `
+      <div class="row-io group/io flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-100 dark:hover:bg-slate-800/40">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="truncate text-sm text-slate-700 dark:text-slate-200">${esc(cfg.name || ioKey)}</span>
+            ${removeBtnHTML(ioKey)}
+          </div>
+          <div class="font-mono text-[10px] text-slate-500">${esc(ioKey)}<span data-value-at="${esc(ioKey)}">${cfg.value_updated_at ? ` · ${relTime(cfg.value_updated_at)}` : ""}</span></div>
+        </div>
+        <span data-value-io="${esc(ioKey)}" title="${esc(shown)}"
+          class="max-w-[9rem] shrink-0 truncate text-right font-mono text-sm ${hasValue ? "text-sky-700 dark:text-sky-300" : "text-slate-400 dark:text-slate-500"}">${esc(shown)}</span>
+      </div>`;
+  }
+
+  function ioRowHTML(ioKey, cfg) {
+    if (isSwitchIO(cfg)) {
+      return `
+        <div class="row-io group/io flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-100 dark:hover:bg-slate-800/40">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="truncate text-sm text-slate-700 dark:text-slate-200">${esc(cfg.name || ioKey)}</span>
+              ${cfg.state ? '<span class="h-1 w-1 rounded-full bg-emerald-400"></span>' : ""}
+              ${removeBtnHTML(ioKey)}
+            </div>
+            <div class="font-mono text-[10px] text-slate-500">${esc(ioKey)}${cfg.updated_at ? ` · ${relTime(cfg.updated_at)}` : ""}</div>
+          </div>
+          ${toggleHTML(ioKey, !!cfg.state, false)}
+        </div>`;
+    }
+    return valueRowHTML(ioKey, cfg);
+  }
+
+  function toggleHTML(ioKey, state, disabled) {
+    const on = "border-emerald-400/40 bg-emerald-500/80";
+    const off = "border-slate-300 bg-slate-200 dark:border-slate-600/60 dark:bg-slate-700/60";
+    return `<button type="button" role="switch" aria-checked="${state}" aria-label="Alternar ${esc(ioKey)}"
+      data-toggle="${esc(ioKey)}" ${disabled ? "disabled" : ""}
+      class="toggle relative h-6 w-11 shrink-0 rounded-full border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 ${state ? on : off} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}">
+      <span class="knob absolute top-0.5 rounded-full bg-white shadow transition-all duration-300" style="height:1.125rem;width:1.125rem;left:${state ? "1.375rem" : "0.125rem"}"></span>
+    </button>`;
+  }
+
+  function deviceCard(dev) {
+    const ios = Object.entries(dev.ios || {});
+    const queued = (dev.pending_queue || []).length;
+    // "ativos" conta só switch ligado: um LDR com valor nunca está "ativo".
+    const switches = ios.filter(([, c]) => isSwitchIO(c));
+    const onCount = switches.filter(([, c]) => c.state).length;
+
+    const iosHtml = ios.length
+      ? ios.map(([key, cfg]) => ioRowHTML(key, cfg)).join("")
+      : `<div class="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-500 dark:border-slate-700/60">
+           Nenhum IO anunciado. O firmware envia <code class="font-mono text-slate-600 dark:text-slate-400">register</code> ao conectar.
+         </div>`;
+
+    const queueHtml = queued
+      ? `<div class="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-[11px] text-amber-700 dark:border-amber-500/20 dark:text-amber-300/90">
+           <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+           ${queued} comando${queued > 1 ? "s" : ""} aguardando reconexão
+         </div>`
+      : "";
+
+    return `
+    <article class="group card animate-fade-up flex flex-col rounded-2xl border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-ink-850/80 dark:shadow-none p-4" data-device="${esc(dev.id)}">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h3 class="truncate font-semibold text-slate-900 dark:text-white">${esc(dev.name || dev.id)}</h3>
+            ${statusBadge(!!dev.online, queued > 0)}
+          </div>
+          <p class="mt-0.5 truncate font-mono text-[11px] text-slate-500">${esc(dev.id)}</p>
+        </div>
+        <div class="flex items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100" data-actions>
+          <button type="button" data-rename="${esc(dev.id)}" title="Renomear"
+            class="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+        <div class="rounded-lg bg-slate-100 px-2.5 py-1.5 dark:bg-slate-900/50">
+          <div class="text-slate-500">visto</div>
+          <div data-seen class="font-mono text-slate-600 dark:text-slate-300">${relTime(dev.last_seen)}</div>
+        </div>
+        <div class="rounded-lg bg-slate-100 px-2.5 py-1.5 dark:bg-slate-900/50">
+          <div class="text-slate-500">ativos</div>
+          <div class="font-mono text-slate-600 dark:text-slate-300">${onCount}/${switches.length}</div>
+        </div>
+      </div>
+
+      <div data-ios class="mt-3 flex-1 space-y-0.5">${iosHtml}</div>
+      ${queueHtml}
+
+      <details class="group/det mt-3 border-t border-slate-200 pt-2 dark:border-slate-800/70">
+        <summary class="flex cursor-pointer list-none items-center justify-between rounded-md px-1 py-1 text-[11px] text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-300">
+          <span>adicionar IO</span>
+          <svg class="h-3 w-3 transition-transform group-open/det:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <form class="mt-2 flex gap-2" data-addio="${esc(dev.id)}">
+          <input name="io" required placeholder="gpio4" class="w-24 rounded-md border border-slate-300 bg-white px-2 py-1.5 font-mono text-[11px] text-slate-700 outline-none focus:border-sky-500/60 dark:border-slate-700 dark:bg-ink-900 dark:text-slate-200">
+          <input name="name" placeholder="nome (opcional)" class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-700 outline-none focus:border-sky-500/60 dark:border-slate-700 dark:bg-ink-900 dark:text-slate-200">
+          <button class="rounded-md bg-slate-200 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition hover:bg-slate-300 dark:bg-slate-700/70 dark:text-slate-100 dark:hover:bg-slate-600">ok</button>
+        </form>
+      </details>
+    </article>`;
+  }
+
+  // Uma atualização do servidor não pode apagar o que o usuário está fazendo no
+  // card: o card é reescrito com innerHTML, então o <details> de "adicionar IO"
+  // e o que foi digitado nos inputs precisam ser recolocados depois.
+  function snapshotDraft(card) {
+    const det = card.querySelector("details");
+    const form = card.querySelector("[data-addio]");
+    const out = { open: !!det?.open, io: "", name: "", focus: "" };
+    if (!form) return out;
+    out.io = form.elements.io.value;
+    out.name = form.elements.name.value;
+    const active = document.activeElement;
+    if (form.contains(active)) {
+      out.focus = active.name === "io" ? "io" : active.name === "name" ? "name" : "";
+    }
+    return out;
+  }
+
+  function restoreDraft(card, draft) {
+    const det = card.querySelector("details");
+    if (det && draft.open) det.open = true;
+    const form = card.querySelector("[data-addio]");
+    if (!form) return;
+    // Só mexe no que o usuário já tinha escrito: o valor novo do template é a
+    // única referência de "campo vazio".
+    if (draft.io) form.elements.io.value = draft.io;
+    if (draft.name) form.elements.name.value = draft.name;
+    if (draft.focus) {
+      const el = form.elements[draft.focus];
+      el.focus();
+      if (typeof el.setSelectionRange === "function") {
+        const end = el.value.length;
+        try { el.setSelectionRange(end, end); } catch { /* input sem seleção */ }
+      }
+    }
+  }
+
+  // Mantém a posição do scroll do card e das linhas ao reescrever.
+  function applyCardContent(target, fresh) {
+    const grid = target.querySelector("[data-ios]");
+    const scrollTop = grid?.scrollTop ?? 0;
+    const draft = snapshotDraft(target);
+    applyPendingToggles(fresh, target.dataset.device);
+    target.innerHTML = fresh.innerHTML;
+    target.className = fresh.className.replace(/\banimate-fade-up\b/, "").trim();
+    restoreDraft(target, draft);
+    const list = target.querySelector("[data-ios]");
+    if (list) list.scrollTop = scrollTop;
+  }
+
+  // Estado de um switch definido no painel e ainda não confirmado pelo gateway.
+  // Vive fora do DOM: se o card for reescrito, o toggle é repintado com ele.
+  const pendingToggles = new Map(); // "deviceID\0io" -> { state, timer }
+
+  function pendingKey(deviceID, io) {
+    return `${deviceID}\u0000${io}`;
+  }
+
+  function paintToggle(btn, state) {
+    btn.setAttribute("aria-checked", String(state));
+    btn.classList.toggle("bg-emerald-500/80", state);
+    btn.classList.toggle("border-emerald-400/40", state);
+    btn.classList.toggle("bg-slate-200", !state);
+    btn.classList.toggle("border-slate-300", !state);
+    btn.classList.toggle("dark:bg-slate-700/60", !state);
+    btn.classList.toggle("dark:border-slate-600/60", !state);
+    const knob = btn.querySelector(".knob");
+    if (knob) knob.style.left = state ? "1.375rem" : "0.125rem";
+  }
+
+  // Card recém-criado ainda não tem estado pendente; card reescrito pode ter.
+  function applyPendingToggles(card, deviceID) {
+    for (const btn of card.querySelectorAll("[data-toggle]")) {
+      const p = pendingToggles.get(pendingKey(deviceID, btn.dataset.toggle));
+      if (p) paintToggle(btn, p.state);
+    }
+  }
+
+  // O "há Ns" do "visto" (last_seen) e o valor de number/text envelhecem sem
+  // mudar o que o card desenha (o valor tem o caminho de `applyLiveValues`; o
+  // "visto" fica com o timer de 5s). Os dois ficam fora da assinatura, senão o
+  // card seria reescrito a cada ping/report e derrubaria o formulário de
+  // "adicionar IO" aberto.
+  const viewSig = (dev) =>
+    JSON.stringify(dev, (key, value) =>
+      key === "value" || key === "value_updated_at" || key === "last_seen" ? undefined : value);
+
+  function ioCfg(deviceID, ioKey) {
+    return lastDevices.find((d) => d.id === deviceID)?.ios?.[ioKey];
+  }
+
+  const PENDING_MS = 10000;
+
+  // O gateway consolida ping/ack sem emitir SSE. Sem esse prazo, um comando que
+  // não ecoou deixa o switch "preso" no estado otimista para sempre.
+  function setPendingToggle(deviceID, ioKey, state) {
+    const key = pendingKey(deviceID, ioKey);
+    clearTimeout(pendingToggles.get(key)?.timer);
+    const timer = setTimeout(() => {
+      pendingToggles.delete(key);
+      const btn = devicesEl.querySelector(`[data-device="${CSS.escape(deviceID)}"] [data-toggle="${CSS.escape(ioKey)}"]`);
+      if (btn) paintToggle(btn, !!(ioCfg(deviceID, ioKey)?.state));
+    }, PENDING_MS);
+    pendingToggles.set(key, { state, timer });
+  }
+
+  // O servidor mandou o estado: o que bate com o último pedido encerra a
+  // pendência. IO que sumiu do estado também deixa de ter pendência.
+  function clearPendingToggles(byID) {
+    for (const [key, p] of pendingToggles) {
+      const sep = key.indexOf("\u0000");
+      const dev = byID.get(key.slice(0, sep));
+      const cfg = dev?.ios?.[key.slice(sep + 1)];
+      if (cfg && !!cfg.state !== p.state) continue;
+      clearTimeout(p.timer);
+      pendingToggles.delete(key);
+    }
+  }
+
+  // O "há Ns" envelhece com o relógio, não com o evento: um sensor que parou
+  // de mandar precisa mostrar "há 2min" mesmo sem chegar report. Roda no
+  // timer de 5s e reescreve só os textos, sem tocar no card.
+  function refreshRelativeTimes() {
+    for (const dev of lastDevices) {
+      const node = devicesEl.querySelector(`[data-device="${CSS.escape(dev.id)}"]`);
+      if (!node) continue;
+      const seen = node.querySelector("[data-seen]");
+      if (seen) {
+        const txt = relTime(dev.last_seen);
+        if (seen.textContent !== txt) seen.textContent = txt;
+      }
+      for (const [ioKey, cfg] of Object.entries(dev.ios || {})) {
+        const at = node.querySelector(`[data-value-at="${CSS.escape(ioKey)}"]`);
+        if (!at) continue;
+        const atText = cfg.value_updated_at ? ` · ${relTime(cfg.value_updated_at)}` : "";
+        if (at.textContent !== atText) at.textContent = atText;
+      }
+    }
+  }
+
+  function applyLiveValues(node, dev) {
+    for (const [ioKey, cfg] of Object.entries(dev.ios || {})) {
+      const el = node.querySelector(`[data-value-io="${CSS.escape(ioKey)}"]`);
+      if (!el) continue;
+      const hasValue = cfg.value !== undefined && cfg.value !== null && cfg.value !== "";
+      const shown = hasValue ? String(cfg.value) : "—";
+      if (el.textContent !== shown) {
+        el.textContent = shown;
+        el.title = shown;
+        el.classList.toggle("text-sky-700", hasValue);
+        el.classList.toggle("dark:text-sky-300", hasValue);
+        el.classList.toggle("text-slate-400", !hasValue);
+        el.classList.toggle("dark:text-slate-500", !hasValue);
+      }
+      // O "há Ns" do report também é vivo: sem isto, ficaria congelado até
+      // outro campo mudar e o card só se corrigiria no re-render de 30s.
+      const at = node.querySelector(`[data-value-at="${CSS.escape(ioKey)}"]`);
+      const atText = cfg.value_updated_at ? ` · ${relTime(cfg.value_updated_at)}` : "";
+      if (at && at.textContent !== atText) at.textContent = atText;
+    }
+  }
+
+  function render() {
+    const visible = lastDevices.filter((d) => {
+      if (!filter) return true;
+      const hay = `${d.id} ${d.name || ""} ${Object.keys(d.ios || {}).join(" ")}`.toLowerCase();
+      return hay.includes(filter);
+    });
+
+    // stats cover all devices, not the filtered view
+    const total = lastDevices.length;
+    const online = lastDevices.filter((d) => d.online).length;
+    const queue = lastDevices.reduce((n, d) => n + (d.pending_queue || []).length, 0);
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-online").textContent = online;
+    document.getElementById("stat-offline").textContent = total - online;
+    document.getElementById("stat-queue").textContent = queue;
+    document.getElementById("online-summary").textContent =
+      total ? `${online}/${total} ativos · ${queue} pendente${queue === 1 ? "" : "s"}` : "aguardando conexões";
+
+    // Reconciliação por nó: cada card é atualizado no lugar, preservando o
+    // elemento <article> e evitando re-animar a entrada ou recriar o switch.
+    //
+    // A assinatura ignora os tempos (`last_seen`, `atualizado` a cada ping/ack):
+    // reescrever o card por causa de um ping destruía o <details> de "adicionar
+    // IO" e o que estava digitado. O "visto há Ns" fica com o timer de 5s.
+    const byID = new Map(visible.map((d) => [d.id, d]));
+    const nodes = [...devicesEl.querySelectorAll("[data-device]")];
+    const seen = new Set();
+
+    clearPendingToggles(byID);
+
+    for (const node of nodes) {
+      const dev = byID.get(node.dataset.device);
+      if (!dev) { node.remove(); continue; }
+      seen.add(dev.id);
+      // Uma assinatura só: o que a tela mostra. Ela ignora `last_seen` (muda a
+      // cada ping) e o valor de number/text (tem caminho próprio, aplicado no
+      // lugar abaixo). Se bater, o card está igual — nada a reescrever.
+      const sig = viewSig(dev);
+      if (node.dataset.sig === sig) {
+        if (node.querySelector("[data-value-io]")) applyLiveValues(node, dev);
+        continue;
+      }
+      node.dataset.sig = sig;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = deviceCard(dev);
+      applyCardContent(node, tmp.firstElementChild);
+      applyPendingToggles(node, dev.id);
+    }
+    for (const dev of visible) {
+      if (seen.has(dev.id)) continue;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = deviceCard(dev);
+      const card = tmp.firstElementChild;
+      card.dataset.sig = viewSig(dev);
+      applyPendingToggles(card, dev.id);
+      // Só o card recém-criado anima a entrada.
+      devicesEl.appendChild(card);
+    }
+
+    const showEmpty = total === 0;
+    emptyEl.classList.toggle("hidden", !showEmpty);
+    devicesEl.classList.toggle("hidden", showEmpty);
+
+    const existingNoMatch = devicesEl.querySelector(`[data-no-match]`);
+    if (!showEmpty && visible.length === 0 && !existingNoMatch) {
+      devicesEl.insertAdjacentHTML("beforeend", `<p data-no-match class="col-span-full rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-800">Nenhum dispositivo corresponde a “${esc(filter)}”.</p>`);
+    } else if ((showEmpty || visible.length > 0) && existingNoMatch) {
+      existingNoMatch.remove();
+    } else if (existingNoMatch && !showEmpty && visible.length === 0) {
+      existingNoMatch.textContent = `Nenhum dispositivo corresponde a “${filter}”.`;
+    }
+
+    document.getElementById("updated-at").textContent = "atualizado " + new Date().toLocaleTimeString("pt-BR", { hour12: false });
+  }
+
+  // ---------- actions ----------
+  // Aplica o estado do switch em `lastDevices` na hora do clique: se o card for
+  // reescrito antes da resposta, ele já nasce com o estado pedido (o otimismo
+  // não pode viver só no nó clicado).
+  function applyLocalState(deviceID, io, state) {
+    const cfg = ioCfg(deviceID, io);
+    if (cfg) cfg.state = state;
+  }
+
+  async function setIO(deviceID, io, state) {
+    try {
+      const res = await fetch(apiURL(`api/devices/${encodeURIComponent(deviceID)}/io`), {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({ io, state })
+      });
+      if (res.status === 401) {
+        pendingToggles.delete(pendingKey(deviceID, io));
+        openKeyModal(true);
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      // A rota devolve o estado gravado: confirma o otimismo mesmo que o SSE
+      // (que o gateway só emite no ack) ainda não tenha chegado.
+      if (typeof result.state === "boolean") {
+        applyLocalState(deviceID, io, result.state);
+        markFlash(deviceID);
+        render();
+      }
+      if (!result.delivered) {
+        toast(result.queued ? "Comando enfileirado" : "Falha ao entregar comando", result.queued ? "warn" : "error");
+      }
+    } catch (err) {
+      // Falhou de verdade: desfaz o estado pedido e volta ao do servidor.
+      pendingToggles.delete(pendingKey(deviceID, io));
+      applyLocalState(deviceID, io, !state);
+      const btn = devicesEl.querySelector(`[data-device="${CSS.escape(deviceID)}"] [data-toggle="${CSS.escape(io)}"]`);
+      if (btn) paintToggle(btn, !state);
+      toast("Não foi possível enviar o comando", "error");
+    }
+  }
+
+  async function addIO(deviceID, io, name) {
+    try {
+      const payload = { io, state: false };
+      if (name) payload.name = name;
+      const res = await fetch(apiURL(`api/devices/${encodeURIComponent(deviceID)}/io`), {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (res.status === 401) { openKeyModal(true); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast("IO adicionado", "ok");
+    } catch {
+      toast("Falha ao adicionar IO", "error");
+    }
+  }
+
+  // Remove o IO só do console/API. O firmware continua anunciando o IO no
+  // register até ser regravado sem ele — e aí o IO volta para o painel.
+  async function removeIO(deviceID, io) {
+    if (!confirm(`Remover o IO "${io}" do console?\n\nO firmware não é alterado: enquanto ele anunciar "${io}", o IO volta na próxima conexão.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(apiURL(`api/devices/${encodeURIComponent(deviceID)}/io/${encodeURIComponent(io)}`), {
+        method: "DELETE",
+        headers: apiHeaders()
+      });
+      if (res.status === 401) { openKeyModal(true); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      // Sem esperar o SSE: o item já saiu do estado do servidor.
+      const dev = lastDevices.find((d) => d.id === deviceID);
+      if (dev) delete dev.ios[io];
+      render();
+      toast(`IO "${io}" removido do console`, "ok");
+      if (result.queued) toast("Desligamento do IO enviado na próxima conexão", "warn");
+    } catch {
+      toast("Falha ao remover IO", "error");
+    }
+  }
+
+  async function rename(deviceID) {
+    const current = lastDevices.find((d) => d.id === deviceID);
+    const name = prompt("Novo nome do dispositivo:", current?.name || "");
+    if (name === null) return;
+    try {
+      const res = await fetch(apiURL(`api/devices/${encodeURIComponent(deviceID)}`), {
+        method: "PATCH",
+        headers: apiHeaders(),
+        body: JSON.stringify({ name: name.trim() })
+      });
+      if (res.status === 401) { openKeyModal(true); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast("Nome atualizado", "ok");
+    } catch {
+      toast("Falha ao renomear", "error");
+    }
+  }
+
+  // Feedback do envio sem re-render: pulso breve no card existente.
+  function markFlash(deviceID) {
+    const card = devicesEl.querySelector(`[data-device="${CSS.escape(deviceID)}"]`);
+    if (!card) return;
+    card.classList.remove("ring-2", "ring-sky-500/40");
+    void card.offsetWidth; // reinicia a transição
+    card.classList.add("ring-2", "ring-sky-500/40");
+    clearTimeout(card.__flashTimer);
+    card.__flashTimer = setTimeout(() => {
+      card.classList.remove("ring-2", "ring-sky-500/40");
+    }, 900);
+  }
+
+  // ---------- toast ----------
+  const toastHost = document.createElement("div");
+  toastHost.className = "fixed bottom-4 right-4 z-50 flex flex-col gap-2";
+  document.body.appendChild(toastHost);
+
+  function toast(message, kind = "ok") {
+    const colors = {
+      ok: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 [html:not(.dark)_&]:border-emerald-300 [html:not(.dark)_&]:text-emerald-800",
+      warn: "border-amber-500/30 bg-amber-500/10 text-amber-200 [html:not(.dark)_&]:border-amber-300 [html:not(.dark)_&]:text-amber-800",
+      error: "border-rose-500/30 bg-rose-500/10 text-rose-200 [html:not(.dark)_&]:border-rose-300 [html:not(.dark)_&]:text-rose-800"
+    };
+    const el = document.createElement("div");
+    el.className = `animate-fade-up rounded-lg border px-3.5 py-2.5 text-xs font-medium shadow-lg backdrop-blur bg-white dark:bg-transparent ${colors[kind] || colors.ok}`;
+    el.textContent = message;
+    toastHost.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = "opacity .3s, transform .3s";
+      el.style.opacity = "0";
+      el.style.transform = "translateY(6px)";
+      setTimeout(() => el.remove(), 320);
+    }, 2600);
+  }
+
+  // ---------- events (SSE) ----------
+  function connect() {
+    if (eventSource) eventSource.close();
+    if (!apiKey) { openKeyModal(); return; }
+
+    setLive("connecting");
+
+    if (!window.EventSource) {
+      pollLoop();
+      return;
+    }
+
+    const url = apiURL(`events?api_key=${encodeURIComponent(apiKey)}`);
+    eventSource = new EventSource(url);
+
+    eventSource.onopen = () => setLive("live");
+    eventSource.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        lastDevices = normalize(data.devices);
+        render();
+      } catch { /* evento malformado: ignora */ }
+    };
+    eventSource.onerror = () => {
+      setLive("offline");
+      // EventSource reconecta sozinho enquanto readyState !== CLOSED; para casos
+      // definitivos (ex.: 401) recriamos com um pequeno atraso.
+      if (eventSource.readyState === EventSource.CLOSED) {
+        eventSource.close();
+        eventSource = null;
+        setTimeout(connect, 3000);
+      }
+    };
+
+    // Re-renderiza os tempos relativos periodicamente.
+    clearInterval(connect.relTimeTimer);
+    // Só os textos relativos envelhecem sem evento; reescrever o card inteiro
+    // a cada 30s derrubaria o caminho live (foco, scroll, <details>).
+    connect.relTimeTimer = setInterval(() => { if (lastDevices.length) refreshRelativeTimes(); }, 5000);
+  }
+
+  function normalize(map) {
+    if (!map) return [];
+    const arr = Array.isArray(map) ? map : Object.values(map);
+    return arr.sort((a, b) => {
+      if (!!b.online !== !!a.online) return a.online ? -1 : 1;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  async function pollLoop() {
+    setLive("connecting");
+    try {
+      const res = await fetch(apiURL("api/devices"), { headers: apiHeaders() });
+      if (res.status === 401) { setLive("offline"); openKeyModal(true); return; }
+      const data = await res.json();
+      lastDevices = normalize(data.devices);
+      render();
+      setLive("live");
+    } catch {
+      setLive("offline");
+    }
+    setTimeout(pollLoop, 5000);
+  }
+
+  // ---------- wiring ----------
+  // Cliques dentro do card: remover IO, switch, renomear e o resumo do
+  // "adicionar IO". Um único listener para tudo, para a ordem não depender de
+  // quando cada handler foi registrado.
+  devicesEl.addEventListener("click", (e) => {
+    const summary = e.target.closest("summary");
+    if (summary && !e.target.closest("button, input, a")) {
+      // O Chrome alterna o <details> sozinho no click; o toggle nativo é
+      // cancelado para alternar aqui — assim a abertura não depende do nó
+      // receber o mousedown (um card reescrito entre mousedown e click ainda
+      // abre). Não alternar no pointerdown: o nativo do click continua e o
+      // painel abriria e fecharia no mesmo clique.
+      e.preventDefault();
+      const det = summary.parentElement;
+      if (det) det.open = !det.open;
+      return;
+    }
+    const remove = e.target.closest("[data-removeio]");
+    if (remove) {
+      const deviceID = remove.closest("[data-device]")?.dataset.device;
+      if (deviceID) removeIO(deviceID, remove.dataset.removeio);
+      return;
+    }
+    const toggle = e.target.closest("[data-toggle]");
+    if (toggle && !toggle.disabled) {
+      const card = toggle.closest("[data-device]");
+      const deviceID = card?.dataset.device;
+      const io = toggle.dataset.toggle;
+      if (!deviceID) return;
+      // Parte do estado já registrado (não do atributo do botão): se o usuário
+      // clicar de novo antes da resposta, o mesmo pedido não é reenviado.
+      const next = !ioCfg(deviceID, io)?.state;
+      applyLocalState(deviceID, io, next);
+      paintToggle(toggle, next);
+      setPendingToggle(deviceID, io, next);
+      setIO(deviceID, io, next);
+      return;
+    }
+    const ren = e.target.closest("[data-rename]");
+    if (ren) rename(ren.dataset.rename);
+  });
+
+  devicesEl.addEventListener("submit", (e) => {
+    const form = e.target.closest("[data-addio]");
+    if (!form) return;
+    e.preventDefault();
+    const deviceID = form.dataset.addio;
+    const io = form.elements.io.value.trim();
+    const name = form.elements.name.value.trim();
+    if (!io) return;
+    addIO(deviceID, io, name);
+    form.reset();
+  });
+
+  filterInput.addEventListener("input", (e) => {
+    filter = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  document.getElementById("add-device-hint").addEventListener("click", () => {
+    toast("Dispositivos aparecem ao conectar via /ws com a API Key", "warn");
+  });
+
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleTimeString("pt-BR", { hour12: false });
+  }, 1000);
+
+  applyTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+  // Outra aba trocou o tema: acompanha.
+  window.addEventListener("storage", (e) => {
+    if (e.key === THEME_STORE) applyTheme(e.newValue === "dark" ? "dark" : "light");
+  });
+
+  connect();
+})();</script>
+</body>
+</html>

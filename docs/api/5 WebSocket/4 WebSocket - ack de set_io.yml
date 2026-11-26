@@ -1,0 +1,36 @@
+info:
+  name: WebSocket - ack de set_io
+  type: websocket
+  seq: 4
+
+websocket:
+  url: "ws://localhost:8080/ws?device_id={{deviceId}}&api_key={{apiKey}}"
+  message:
+    type: text
+    data: |-
+      {"type":"ack","command_id":"cmd-1764123456789012345","io":"gpio2","state":true}
+  auth: inherit
+
+settings:
+  timeout: 0
+  keepAliveInterval: 0
+
+docs: |-
+  Confirma o `set_io` e remove o item da `pending_queue`. Copie o `command_id`
+  que apareceu na resposta do POST de IO.
+
+  ```json
+  {"type":"ack","command_id":"cmd-1764123456789012345","io":"gpio2","state":true}
+  ```
+
+  - Com `command_id`, o servidor casa a pendencia e drena a fila. `io`/`state`
+    podem ser omitidos: nesse caso ele usa os valores da pendencia.
+  - Sem `command_id` (mudanca local, ex.: botao fisico), o servidor grava o
+    estado e notifica o painel sem tocar na fila.
+  - `ack` de **valor** (`set_io` com `value`) so drena a fila; nao grava estado -
+    IO de valor nao tem `state`.
+  - `ack` com `command_id` de comando ja entregue (envio imediato, nao
+    enfileirado) e ignorado sem erro.
+
+  O firmware envia o `ack` automaticamente pelo `device.loop()`; este request e
+  para teste manual e para firmware de terceiros.

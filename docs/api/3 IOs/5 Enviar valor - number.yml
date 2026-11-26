@@ -1,0 +1,50 @@
+info:
+  name: Enviar valor (number)
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/devices/{{deviceId}}/io"
+  headers:
+    - name: X-API-Key
+      value: "{{apiKey}}"
+    - name: Content-Type
+      value: "application/json"
+  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "io": "ldr",
+        "value": 42
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Envia um numero para um IO `number`; o firmware consome com
+  `device.takeNumber("ldr", n)`.
+
+  Resposta 200 (real):
+  ```json
+  {"command_id":"cmd-1795632795145910700","delivered":true,"device_id":"esp-relay-demo","io":"ldr","queued":false,"value":42}
+  ```
+
+  - O IO precisa existir com `kind: "number"`. Em `switch`, `{"io":"gpio2","value":1}`
+    responde 400 `switch nao aceita value (use state)`.
+  - `value` tem de ser numero JSON: `42`, `-3.5`, `0.25`. String `"42"` -> 400
+    `valor invalido para number`. `null` e NaN/Inf tambem sao recusados.
+  - Sem `state` na resposta: IO de valor nao tem estado.
+
+  Uso tipico: alvo de servo, PWM, intervalo de amostragem, calibracao.
+
+  Atencao: um IO de *leitura* (`report` periodico) nao deve ser o mesmo de
+  *comando* - o proximo `report` do firmware sobrescreve no painel o valor que
+  voce mandou. O `ldr` deste repositorio publica `analogRead(A0)` a 1 Hz: aqui ele
+  serve de esteira. Num projeto real, crie um IO separado (ex.: `ldr_alvo`).

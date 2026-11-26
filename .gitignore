@@ -1,0 +1,20 @@
+# Firmware: credenciais locais e artefatos do PlatformIO
+secrets.h
+.pio/
+*.bkp
+
+# Gateway: artefatos de build e estado de runtime
+dist/
+data/
+*.tmp
+*.exe
+
+# VS Code / editor: só as extensões recomendadas são versionadas
+.vscode/*
+!.vscode/extensions.json
+
+# Ferramentas locais
+.local/
+.superpowers/
+.playwright-mcp/
+opencode.json

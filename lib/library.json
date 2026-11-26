@@ -1,0 +1,17 @@
+{
+  "name": "IotDevice",
+  "version": "0.1.0",
+  "description": "Cliente do gateway esp-relay para ESP8266: registra IOs, aplica set_io, confirma ack e mantém a sessão viva.",
+  "keywords": ["iot", "websocket", "esp8266", "gateway", "relay"],
+  "frameworks": "arduino",
+  "platforms": "espressif8266",
+  "homepage": "https://github.com/GabrielTrigo/esp-relay",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GabrielTrigo/esp-relay.git"
+  },
+  "dependencies": {
+    "links2004/WebSockets": "^2.7.3",
+    "bblanchon/ArduinoJson": "^7.4.3"
+  }
+}
